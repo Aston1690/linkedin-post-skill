@@ -1,23 +1,19 @@
 # LinkedIn Post Skill for Claude Code
 
-Create high-performing LinkedIn posts — single images and multi-slide carousels — using Gemini AI image generation, directly from Claude Code.
+Create high-performing LinkedIn posts — single images and multi-slide carousels — using Flux 2 AI image generation, directly from Claude Code.
 
 ## What It Does
 
 - Generates production-ready LinkedIn post graphics (single image or carousel)
 - Writes LinkedIn-optimized copy when given just a topic
 - Supports portrait (1080x1350) and square (1080x1080) formats
-- Uses Flash model for quick drafts, Pro model for final output up to 4K
+- Uses Flux 2 model for high-quality image generation
 - Includes 12 LinkedIn-specific design principles, carousel templates, and quality checklists
 
 ## Prerequisites
 
 1. **Claude Code** installed
-2. **Nano Banana Pro plugin** (provides Gemini image generation):
-   ```
-   /install-plugin buildatscale-tv/claude-code-plugins nano-banana-pro
-   ```
-3. **`GEMINI_API_KEY`** environment variable set with a valid Google Gemini API key
+2. **`FLUX_API_KEY`** environment variable set with a valid API key (supports BFL and OpenRouter key formats)
 
 ## One-Line Install
 
@@ -41,7 +37,7 @@ The skill will:
 1. Collect your brand info and brief
 2. Write copy (if needed) using proven LinkedIn formulas
 3. Show you a Design Spec for approval
-4. Generate a draft (Flash) → review → final (Pro at 2K)
+4. Generate the image with Flux 2
 5. Export to `./output/`
 
 ## What You Provide
