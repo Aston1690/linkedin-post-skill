@@ -19,13 +19,15 @@ Create high-performing LinkedIn posts — single images and multi-slide carousel
    ```
 3. **`GEMINI_API_KEY`** environment variable set with a valid Google Gemini API key
 
-## Installation
+## One-Line Install
 
-Install this skill in Claude Code:
+Paste this into your terminal:
 
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/Aston1690/linkedin-post-skill/main/install.sh)
 ```
-/install-skill Aston1690/linkedin-post-skill
-```
+
+Then restart Claude Code. Type `/linkedin-post` to use it.
 
 ## Usage
 
