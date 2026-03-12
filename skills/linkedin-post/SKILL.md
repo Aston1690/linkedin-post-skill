@@ -1,27 +1,38 @@
 ---
 name: linkedin-post
 description: >
-  Create high-performing LinkedIn posts — both single-image posts and multi-slide carousels — using Flux 2 AI image generation.
+  Create high-performing LinkedIn posts — both single-image posts and multi-slide carousels — using Puppeteer HTML-to-image rendering
+  and open-source stock photos from Unsplash, Pexels, and Pixabay.
   Use this skill whenever the user asks to create, design, build, or make a LinkedIn post, LinkedIn carousel, LinkedIn graphic, LinkedIn content,
   or any visual content for LinkedIn. Also trigger when the user mentions "LinkedIn" alongside words like "post", "slide", "carousel", "graphic",
   "design", "image", or "content". This skill handles the full workflow from brief intake through design execution to export.
-  Uses Flux 2 model for high-quality, production-ready LinkedIn visuals with precise text rendering, brand colors, and professional layouts.
+  Uses Puppeteer to render pixel-perfect HTML templates into production-ready LinkedIn visuals with precise text rendering, brand colors, and professional layouts.
+  Fetches photos from open-source platforms (Unsplash, Pexels, Pixabay) strictly matching the image suggestions in the content document.
   Also includes LinkedIn-specific copywriting formulas, WCAG contrast checks, carousel structure templates, and quality checklists.
   Do NOT trigger for: text-only LinkedIn captions, LinkedIn profile optimization, LinkedIn DM templates, LinkedIn analytics, or non-LinkedIn platforms.
 ---
 
 # LinkedIn Post Creation Skill
 
-You are a Senior Designer creating LinkedIn visual content using **Flux 2 AI image generation**. You produce finished, export-ready designs — not descriptions or mockups. You have a built-in library of professional reference templates that you use to ensure every design looks like it was crafted by a top-tier social media design agency.
+You are a Senior Designer creating LinkedIn visual content using **Puppeteer HTML-to-image rendering** and **open-source stock photography**. You produce finished, export-ready designs — not descriptions or mockups. You have a built-in library of professional HTML templates and reference designs that you use to ensure every design looks like it was crafted by a top-tier social media design agency.
 
 ## Prerequisites
 
 This skill requires:
-1. **`FLUX_API_KEY`** environment variable set with a valid API key (supports BFL and OpenRouter key formats)
+1. **Node.js** (v18+) installed
+2. **Puppeteer** — install dependencies by running:
+   ```bash
+   SKILL_DIR=$(dirname "$(find ~/.claude -path "*/linkedin-post/SKILL.md" 2>/dev/null | head -1)")
+   cd "$SKILL_DIR/scripts" && npm install
+   ```
+3. **At least one image API key** (for fetching stock photos):
+   - `UNSPLASH_ACCESS_KEY` — from https://unsplash.com/developers (preferred)
+   - `PEXELS_API_KEY` — from https://www.pexels.com/api/
+   - `PIXABAY_API_KEY` — from https://pixabay.com/api/docs/
 
 ## Reference Library — Professional Design Templates
 
-This skill includes a curated library of professional social media post references organized by industry/style. These references teach Flux 2 proven layout structures, typography hierarchies, and visual patterns used by real design agencies.
+This skill includes a curated library of professional social media post references organized by industry/style. These references teach layout structures, typography hierarchies, and visual patterns used by real design agencies.
 
 ### Reference Directory Structure
 
@@ -39,7 +50,7 @@ references/
 
 ### Automatic Style Matching — Phase 0
 
-**ALWAYS run this before designing.** Analyze the business/brand doc to select the best reference.
+**ALWAYS run this before designing.** Analyze the business/brand doc to select the best reference and template.
 
 **Step 1 — Detect business industry from brand doc keywords:**
 
@@ -66,13 +77,14 @@ REFS_DIR="$SKILL_DIR/references"
 MATCHED_REF="$REFS_DIR/{category}/{best_matching_file}"
 ```
 
-The matched reference is then passed to EVERY Flux 2 generation call as `--reference "$MATCHED_REF"`.
+The matched reference is studied for layout structure, then replicated using the HTML template system.
 
 ### Layout Patterns Learned from References
 
-These are the proven layout structures extracted from the reference library. **ALWAYS apply these patterns** — they are what separate professional social media posts from amateur AI-generated images.
+These are the proven layout structures extracted from the reference library. **ALWAYS apply these patterns** — they are what separate professional social media posts from amateur designs.
 
 #### Pattern 1: Header Bar Layout (Most Common — use as default)
+**Template:** `templates/pattern1_header_bar.html`
 ```
 ┌─────────────────────────────┐
 │ [Logo/Brand]    [Tag/Label] │  ← Top bar: brand mark left, category pill right
@@ -93,6 +105,7 @@ These are the proven layout structures extracted from the reference library. **A
 ```
 
 #### Pattern 2: Split Layout (Image + Text Side by Side)
+**Template:** `templates/pattern2_split.html`
 ```
 ┌──────────────┬──────────────┐
 │ [Logo]       │              │
@@ -109,6 +122,7 @@ These are the proven layout structures extracted from the reference library. **A
 ```
 
 #### Pattern 3: Testimonial / Social Proof Layout
+**Template:** `templates/pattern3_testimonial.html`
 ```
 ┌─────────────────────────────┐
 │ [Logo]        [Tag: Client  │
@@ -128,6 +142,7 @@ These are the proven layout structures extracted from the reference library. **A
 ```
 
 #### Pattern 4: Stats / Data-Driven Layout
+**Template:** `templates/pattern4_stats.html`
 ```
 ┌─────────────────────────────┐
 │ [Logo]                      │
@@ -146,6 +161,7 @@ These are the proven layout structures extracted from the reference library. **A
 ```
 
 #### Pattern 5: Service / Value Proposition Layout
+**Template:** `templates/pattern5_service.html`
 ```
 ┌─────────────────────────────┐
 │ [Logo]          website.com │
@@ -163,6 +179,7 @@ These are the proven layout structures extracted from the reference library. **A
 ```
 
 #### Pattern 6: CTA / Closing Slide Layout
+**Template:** `templates/pattern6_cta.html`
 ```
 ┌─────────────────────────────┐
 │ [Logo]                      │
@@ -229,34 +246,114 @@ Professional posts use subtle decorative elements — never overwhelming:
 - **Star ratings**: For testimonial posts, 5-star display
 - **Number badges**: Circled numbers (1, 2, 3) for step-by-step or list posts
 
-## Design Tool: Flux 2 Image Generation
+---
 
-All designs are generated using the bundled Flux 2 image generation script located at `scripts/flux_image.py` within this skill directory.
+## Design Tools
 
-### Generation Command
+### Tool 1: Puppeteer Image Generator
 
-The script accepts these options:
+All designs are rendered from HTML/CSS using Puppeteer. The script is located at `scripts/generate_image.js`.
 
-- `--prompt` (required): Detailed description of the complete design — layout, text, colors, typography, elements
-- `--output` (required): Output file path (PNG)
-- `--aspect`: "square" (1:1), "landscape" (16:9), "portrait" (9:16) — default: portrait
-- `--width`: Custom width in pixels (overrides aspect preset)
-- `--height`: Custom height in pixels (overrides aspect preset)
-- `--reference`: Path to a reference image for style guidance
+#### Generation Command
 
-To locate the image generation script, find it relative to this skill:
 ```bash
 SKILL_DIR=$(dirname "$(find ~/.claude -path "*/linkedin-post/SKILL.md" 2>/dev/null | head -1)")
-IMAGE_SCRIPT="$SKILL_DIR/scripts/flux_image.py"
+IMAGE_SCRIPT="$SKILL_DIR/scripts/generate_image.js"
 ```
 
-Then invoke with:
+Options:
+- `--html` (required*): Path to the HTML file to render
+- `--html-string` (required*): Inline HTML string to render (alternative to --html)
+- `--output` (required): Output file path (PNG)
+- `--aspect`: "square", "portrait", "landscape", "story" — default: portrait
+- `--width`: Custom width in pixels (overrides aspect preset)
+- `--height`: Custom height in pixels (overrides aspect preset)
+- `--scale`: Device scale factor for retina quality (default: 2)
+- `--data`: JSON string or path to JSON file for template variable substitution
+
+*One of `--html` or `--html-string` is required.
+
+#### Template Variable Substitution
+
+Templates use `{{variable}}` placeholders. Pass data via `--data`:
+
 ```bash
-python "$IMAGE_SCRIPT" \
-  --prompt "Your detailed design prompt" \
-  --output "/path/to/output.png" \
+node "$IMAGE_SCRIPT" \
+  --html "$SKILL_DIR/templates/pattern1_header_bar.html" \
+  --output "./output/post.png" \
+  --data '{"bg_color":"#1A1A2E","text_color":"#FFFFFF","accent_color":"#E94560","accent_text_color":"#FFFFFF","secondary_color":"#16213E","font_family":"Inter","brand_name":"Acme Corp","headline":"Your Bold Headline Here","body_text":"Supporting text goes here","cta_text":"Learn More","website":"acme.com"}'
+```
+
+#### Using Inline HTML (Recommended for Maximum Control)
+
+For full creative control, build the complete HTML inline. This is the **preferred method** because it gives you pixel-perfect control over every element:
+
+```bash
+node "$IMAGE_SCRIPT" \
+  --html-string '<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="'"$SKILL_DIR"'/templates/base.css">
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+.card {
+  width: 1080px; height: 1350px;
+  background: #1A1A2E; color: #FFFFFF;
+  font-family: "Inter", sans-serif;
+  position: relative; overflow: hidden;
+}
+</style>
+</head>
+<body>
+<div class="card">
+  <!-- Full layout with all elements -->
+</div>
+</body>
+</html>' \
+  --output "./output/post.png" \
   --aspect portrait
 ```
+
+**CRITICAL: When building inline HTML, use the reference images as VISUAL GUIDES for layout structure. Study the matched reference, then recreate its layout in HTML with the CLIENT's brand colors, fonts, and content. The HTML gives you perfect pixel control that AI image generation cannot match.**
+
+### Tool 2: Open-Source Image Fetcher
+
+Fetch professional stock photos from Unsplash, Pexels, or Pixabay. The script is at `scripts/fetch_image.js`.
+
+```bash
+SKILL_DIR=$(dirname "$(find ~/.claude -path "*/linkedin-post/SKILL.md" 2>/dev/null | head -1)")
+FETCH_SCRIPT="$SKILL_DIR/scripts/fetch_image.js"
+```
+
+Options:
+- `--query` (required): Search query for images
+- `--output` (required): Output file path
+- `--provider`: Force a specific provider ("unsplash", "pexels", "pixabay") — default: auto-fallback
+- `--orientation`: "portrait", "landscape", "squarish"
+- `--size`: "small", "medium", "large" (default: large)
+- `--count`: Number of images to download (default: 1)
+
+#### CRITICAL: Image Suggestions from Content Document
+
+**When the content document or brief includes image suggestions or descriptions, you MUST follow them strictly:**
+
+1. **Read the image suggestion** from the content document carefully
+2. **Craft a specific search query** that matches the suggestion exactly
+3. **Fetch the image** using the fetcher script
+4. **Verify the downloaded image** matches the suggestion before using it in the design
+5. If no match, refine the query and try again with a different provider
+
+Example — if the content doc says "image of a diverse team in a modern office brainstorming":
+```bash
+node "$FETCH_SCRIPT" \
+  --query "diverse team modern office brainstorming meeting" \
+  --output "./assets/team_photo.jpg" \
+  --orientation landscape \
+  --size large
+```
+
+**NEVER substitute a generic stock photo when a specific image description is provided. The image MUST match the content document's suggestion.**
 
 ---
 
@@ -280,7 +377,7 @@ Collect these before starting. If any are missing, ask once clearly.
 | Input | Required | Notes |
 |-------|----------|-------|
 | Brand info | Yes | Any format: PDF, image, markdown, inline text, or a link. Need at minimum: colors (hex) and fonts. Logo and tone are helpful but not blockers. |
-| Content brief | Yes | At minimum: topic. Ideally also: key message, target audience. If the user gives only a topic, you'll write the copy yourself (see Phase 1b below). |
+| Content brief | Yes | At minimum: topic. Ideally also: key message, target audience, **image suggestions**. If the user gives only a topic, you'll write the copy yourself (see Phase 1b below). |
 | Post type | Yes | Single image or carousel. If unclear, recommend based on content (see decision tree below). |
 | CTA | Yes | What action should the viewer take? (follow, save, comment, visit link, DM). If not specified, default to "Follow for more". |
 | Reference posts | Optional | 2-3 examples of posts the user likes. |
@@ -310,17 +407,48 @@ Before any design work, automatically match the business to a reference style:
 1. **Read the brand doc / website** — extract industry, tone, primary colors
 2. **Run the style matching table** (see "Automatic Style Matching" above) — determine the best reference category
 3. **Select the closest reference image** within that category based on color and energy match
-4. **Set `MATCHED_REF`** — this reference will be used in ALL Flux 2 generation calls
+4. **Study the reference** — extract layout grid, color proportions, typography hierarchy, decorative elements
+5. **Select the HTML template** that best matches the reference's layout pattern
 
 ```bash
 SKILL_DIR=$(dirname "$(find ~/.claude -path "*/linkedin-post/SKILL.md" 2>/dev/null | head -1)")
 REFS_DIR="$SKILL_DIR/references"
+TEMPLATES_DIR="$SKILL_DIR/templates"
 
-# Example: dental clinic → healthcare category → blue medical reference
+# Example: dental clinic → healthcare category → pattern1 template
 MATCHED_REF="$REFS_DIR/healthcare/healthcare_medical_blue.jpg"
+TEMPLATE="$TEMPLATES_DIR/pattern1_header_bar.html"
 ```
 
-**If the user also provides their own reference posts**, use those INSTEAD of the built-in references (user-provided always takes priority).
+**If the user also provides their own reference posts**, study those INSTEAD of the built-in references (user-provided always takes priority).
+
+### Phase 0b: Fetch Images (when content doc specifies images)
+
+**CRITICAL: If the content document, brief, or user provides specific image suggestions or descriptions, fetch matching images BEFORE designing.**
+
+1. **Extract ALL image suggestions** from the content document
+2. **For each image suggestion**, craft a precise search query
+3. **Fetch each image** using the image fetcher:
+
+```bash
+SKILL_DIR=$(dirname "$(find ~/.claude -path "*/linkedin-post/SKILL.md" 2>/dev/null | head -1)")
+FETCH_SCRIPT="$SKILL_DIR/scripts/fetch_image.js"
+
+# Fetch images matching content doc suggestions
+node "$FETCH_SCRIPT" \
+  --query "exact description from content doc" \
+  --output "./assets/photo_1.jpg" \
+  --orientation portrait \
+  --size large
+```
+
+4. **Verify each image** visually matches the content doc's description
+5. If a photo doesn't match, try alternative search terms or a different provider:
+```bash
+node "$FETCH_SCRIPT" --query "alternative search terms" --output "./assets/photo_1.jpg" --provider pexels
+```
+
+**The fetched images will be embedded directly into the HTML templates as `<img>` elements or CSS background images.**
 
 ### Phase 1: Brief Analysis
 
@@ -333,16 +461,16 @@ MATCHED_REF="$REFS_DIR/healthcare/healthcare_medical_blue.jpg"
 
 **IMPORTANT: Brand colors and fonts ALWAYS come from the client's website or brand doc. The reference images provide layout structure and design patterns only — never copy a reference's colors or branding.**
 
-**Step 2 — Select layout pattern.** Based on the content type and matched reference, select one of the 6 layout patterns (Header Bar, Split, Testimonial, Stats, Service/Value Prop, or CTA). Match it to the content:
+**Step 2 — Select layout pattern.** Based on the content type and matched reference, select one of the 6 layout patterns and its corresponding HTML template:
 
-| Content Type | Best Layout Pattern |
-|---|---|
-| Value proposition, announcement, general | Pattern 1: Header Bar (default) |
-| Feature showcase, about us, team | Pattern 2: Split Layout |
-| Client testimonial, review, social proof | Pattern 3: Testimonial |
-| Statistics, results, data points | Pattern 4: Stats / Data-Driven |
-| Services list, what we do, capabilities | Pattern 5: Service / Value Prop |
-| Call-to-action, closing slide, contact | Pattern 6: CTA / Closing |
+| Content Type | Best Layout Pattern | Template |
+|---|---|---|
+| Value proposition, announcement, general | Pattern 1: Header Bar (default) | `pattern1_header_bar.html` |
+| Feature showcase, about us, team | Pattern 2: Split Layout | `pattern2_split.html` |
+| Client testimonial, review, social proof | Pattern 3: Testimonial | `pattern3_testimonial.html` |
+| Statistics, results, data points | Pattern 4: Stats / Data-Driven | `pattern4_stats.html` |
+| Services list, what we do, capabilities | Pattern 5: Service / Value Prop | `pattern5_service.html` |
+| Call-to-action, closing slide, contact | Pattern 6: CTA / Closing | `pattern6_cta.html` |
 
 **Step 3 — Analyze the matched reference image.** Study it and extract:
 - Layout grid: where headline, CTA, logo sit
@@ -353,16 +481,17 @@ MATCHED_REF="$REFS_DIR/healthcare/healthcare_medical_blue.jpg"
 - Photo integration style: rounded frame, circular crop, blob mask, or overlay
 
 **Step 4 — Write a Design Spec.** Combine the reference's layout with the client's brand. Summarize in 8-12 lines:
-- Selected layout pattern (which of the 6)
+- Selected layout pattern + template file
 - Background treatment (using CLIENT'S primary color, not reference's)
 - Layout structure (following reference's spatial arrangement)
 - Typography hierarchy (headline weight/size, body size, CTA style)
 - Color assignments: 60/30/10 split using CLIENT'S colors
 - Accent word highlighting technique (which 1-2 words get emphasis, how)
 - Decorative elements (pills, shapes, cards — adapted from reference style)
-- Photo integration method (if applicable)
+- Photo integration method (if applicable — fetched from open-source platform)
 - CTA button style and placement
 - Contact/URL bar format
+- **Image sources**: Which photos to fetch and their exact search queries (based on content doc suggestions)
 
 **Show the Design Spec to the user. This is the only required pause.** Wait for approval before continuing.
 
@@ -392,181 +521,121 @@ If the brief contains just a topic (e.g., "AI in recruitment") without finished 
 
 Keep all copy concise. LinkedIn is a scanning environment — every word must earn its place.
 
-### Phase 2: Design Execution with Flux 2
+### Phase 2: Design Execution with Puppeteer
 
-#### Crafting the Perfect Design Prompt
+#### Building the HTML Design
 
-The key to production-quality LinkedIn posts with Flux 2 is an extremely detailed, precise prompt. Your prompt must describe the COMPLETE visual design as if you're writing a specification sheet for a graphic designer.
+The key to production-quality LinkedIn posts is precisely crafted HTML/CSS rendered through Puppeteer. You have full control over every pixel — typography, spacing, colors, images, and decorative elements.
 
-**Every design prompt MUST include:**
+**Every design HTML MUST include:**
 
-1. **Canvas & Layout:** Specify the exact format (e.g., "professional LinkedIn post graphic, portrait 9:16 aspect ratio")
-2. **Background:** Exact treatment — solid color with hex, gradient direction and colors, or textured background
-3. **Text Content:** ALL text that appears on the image, with explicit placement instructions (top, center, bottom, left-aligned, etc.)
-4. **Typography Styling:** Font style descriptions (bold sans-serif, light serif, etc.), relative sizes (large headline, smaller subtext), weights
-5. **Color Palette:** Exact hex colors for every element — background, text, accents, buttons, shapes
-6. **Brand Elements:** Logo placement description, brand name text treatment
-7. **Visual Elements:** Shapes, icons, lines, decorative elements with colors and positions
-8. **Spacing:** Generous margins, breathing room between elements
-9. **Overall Aesthetic:** Professional, clean, modern, bold — match the brand tone
+1. **Base stylesheet**: Link to `templates/base.css` for foundational styles
+2. **Google Fonts import**: Include the brand's font family (or closest match from Google Fonts)
+3. **Exact dimensions**: The `.card` div must be exactly 1080x1350 (portrait) or 1080x1080 (square)
+4. **All text content**: Rendered as real HTML text — crisp, scalable, perfectly anti-aliased
+5. **Brand colors**: Applied via CSS with exact hex values
+6. **Fetched photos**: Embedded as `<img>` tags with the downloaded image paths or as base64 data URIs
+7. **Decorative elements**: CSS shapes, gradients, and pseudo-elements for professional polish
 
-#### Prompt Template for Single Image Posts
+#### Recommended Approach: Build Complete Inline HTML
 
+For maximum control and quality, build the full HTML inline rather than using template placeholders:
+
+```bash
+SKILL_DIR=$(dirname "$(find ~/.claude -path "*/linkedin-post/SKILL.md" 2>/dev/null | head -1)")
+IMAGE_SCRIPT="$SKILL_DIR/scripts/generate_image.js"
+
+node "$IMAGE_SCRIPT" \
+  --html-string '<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="'"$SKILL_DIR"'/templates/base.css">
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+.card { width:1080px; height:1350px; background:#1A1A2E; color:#FFF; font-family:"Inter",sans-serif; position:relative; overflow:hidden; }
+/* ... full custom CSS ... */
+</style>
+</head>
+<body>
+<div class="card">
+  <!-- Complete layout -->
+</div>
+</body>
+</html>' \
+  --output "./output/brand_linkedin_single_2026-03-12.png" \
+  --aspect portrait
 ```
-Create a professional social media post graphic designed for LinkedIn. Portrait 9:16 aspect ratio, 1080x1350 pixels. This must look like a real, agency-designed social media template — NOT an AI-generated image.
 
-LAYOUT PATTERN: [Selected pattern name, e.g., "Header Bar Layout"]
-Follow this exact spatial structure:
-- TOP BAR: "{brand name}" as small text or logo mark, top-left. [Optional: category tag pill "{tag text}" in {accent hex} rounded rectangle, top-right]
-- HEADLINE ZONE (upper 35% of card): "{exact headline text}" in extra-bold sans-serif, {headline hex color}. The word(s) "{accent word}" rendered in {accent hex color} [or with a {accent hex} highlight rectangle behind it] for emphasis.
-- CONTENT ZONE (middle 35%): [Photo of person/scene in rounded-corner rectangle frame / OR body text / OR stat number]
-  - If photo: professional stock photo style, {description}, inside a rounded rectangle with 12px corner radius
-  - If body text: "{exact body text}" in regular weight sans-serif, {body text hex}, max 3 lines
-  - If stat: "{number}" in massive extra-bold text, {accent hex}, with label text below in regular weight
-- SUPPORTING ZONE (lower 20%): [Bullet points as pills / subtext / testimonial attribution]
-- BOTTOM BAR: [CTA button: "{CTA text}" in white text on {accent hex} rounded pill button, left side] [website.com and contact info in small text, right side]
+**CRITICAL: When building inline HTML, use the reference images as VISUAL GUIDES for layout structure. Study the matched reference, then recreate its layout in HTML with the CLIENT's brand colors, fonts, and content.**
 
-BACKGROUND: Solid {primary hex color} [with subtle geometric shapes — small circles and abstract petal/leaf shapes in a slightly lighter/darker shade of the same color, placed in corners and margins for visual interest]
+#### Embedding Fetched Photos
 
-COLOR SYSTEM (60/30/10):
-- 60% Primary: {primary hex} — background
-- 30% Secondary: {secondary hex} — text, photo frames, content cards
-- 10% Accent: {accent hex} — CTA button, highlighted words, tags, icons
+After fetching photos in Phase 0b, embed them in the HTML:
 
-TYPOGRAPHY:
-- Headline: Extra-bold sans-serif (like Montserrat Black, Inter Black, or DM Sans Bold), largest text on card
-- Body: Regular weight sans-serif, approximately 40% of headline size
-- CTA: Medium weight, slightly smaller than body, inside rounded pill button
-- Contact bar: Small, regular weight, bottom of card
+**Method 1 — Absolute file path (local HTML):**
+```html
+<div class="photo-frame">
+  <img src="file:///absolute/path/to/assets/photo.jpg" alt="Description">
+</div>
+```
 
-DECORATIVE ELEMENTS:
-- Rounded corner cards/boxes for content sections (white or light colored on darker background)
-- Small pill-shaped tags for categories or keywords
-- Subtle geometric accent shapes (circles, crosses, abstract petals) in accent color in corners
-- Clean thin separator lines between sections if needed
+**Method 2 — Base64 data URI (most reliable for --html-string):**
+```bash
+PHOTO_B64=$(base64 -i ./assets/photo.jpg)
+# Then in HTML: <img src="data:image/jpeg;base64,${PHOTO_B64}">
+```
 
-CRITICAL RENDERING RULES:
-- All text must be perfectly typeset, crisp, and professionally rendered
-- Every word spelled exactly as specified — zero spelling errors
-- Text must be large enough to read on a mobile phone screen
-- Photo elements must have clean rounded corners, not jagged edges
-- The overall design must look like a premium social media template, not an AI generation
-- Generous whitespace and margins — content must breathe
-- No clipart, no 3D renders, no watermarks, no stock photo watermarks
+**Method 3 — Direct URL from provider:**
+```html
+<img src="https://images.unsplash.com/photo-xxxx" alt="Description">
 ```
 
 #### Single Image Workflow
 
-1. **Run Phase 0** to select the matched reference image
-2. **Generate the design** using Flux 2 with the full detailed prompt AND the matched reference:
-
+1. **Run Phase 0** to select the matched reference and template
+2. **Run Phase 0b** to fetch any images specified in the content document
+3. **Study the reference image** and note its exact layout structure
+4. **Build the HTML design** — recreate the reference's layout using HTML/CSS with the client's brand
+5. **Generate the PNG:**
 ```bash
-# Locate the image generation script and references
-SKILL_DIR=$(dirname "$(find ~/.claude -path "*/linkedin-post/SKILL.md" 2>/dev/null | head -1)")
-IMAGE_SCRIPT="$SKILL_DIR/scripts/flux_image.py"
-REFS_DIR="$SKILL_DIR/references"
-
-# Generate with matched reference for style guidance
-python "$IMAGE_SCRIPT" \
-  --prompt "YOUR DETAILED PROMPT (using template above)" \
+node "$IMAGE_SCRIPT" \
+  --html-string "YOUR COMPLETE HTML DESIGN" \
   --output "./output/[brand]_linkedin_single_[YYYY-MM-DD].png" \
-  --reference "$REFS_DIR/{category}/{matched_reference}.jpg" \
   --aspect portrait
 ```
-
-3. **Review the result:** Check text placement, color accuracy, visual hierarchy, readability
-4. **Refine if needed:** Adjust the prompt and regenerate. Common refinements:
-   - Text not legible → add "Ensure all text is large, bold, crisp and perfectly legible"
-   - Layout doesn't match pattern → be more explicit about spatial positions (percentages from top)
-   - Colors wrong → double-check hex values
-   - Doesn't look professional → try a different reference image from the same category
-5. **If first reference doesn't produce good results**, try another reference from the same or adjacent category
-
-#### Using Reference Images
-
-**Built-in references (automatic):** Every generation ALWAYS uses a `--reference` from the built-in library. The reference is selected in Phase 0 based on business type and brand colors.
-
-**User-provided references (override):** When the user provides their own example posts, use those INSTEAD of the built-in references:
-
-```bash
-python "$IMAGE_SCRIPT" \
-  --prompt "Create a LinkedIn post matching this reference style but with these brand specifics: [full design prompt]" \
-  --output "./output/post.png" \
-  --reference "./user_provided_reference.png" \
-  --aspect portrait
-```
-
-**Reference selection priority:**
-1. User-provided reference posts → use these first
-2. Built-in reference that matches business type + color palette → automatic selection
-3. If no good match exists → use the closest category with a note in the design spec
+6. **Review the result** — check text, colors, hierarchy, readability
+7. **Refine if needed** — adjust HTML/CSS and regenerate
 
 #### Carousel Workflow
 
-For carousels, generate each slide individually maintaining visual consistency, then provide all slides as the final output:
+For carousels, generate each slide individually maintaining visual consistency:
 
-1. **Run Phase 0** to select the matched reference image for the business type
-2. **Define the visual system first:** Before generating any slide, define the exact visual template — background, text positions, colors, decorative elements — that ALL slides will share. Use the matched reference to guide the visual system.
-3. **Generate Slide 1 (Hook)** using the matched reference from the built-in library:
-
-```bash
-SKILL_DIR=$(dirname "$(find ~/.claude -path "*/linkedin-post/SKILL.md" 2>/dev/null | head -1)")
-IMAGE_SCRIPT="$SKILL_DIR/scripts/flux_image.py"
-REFS_DIR="$SKILL_DIR/references"
-
-# Slide 1 - Hook (uses built-in reference for initial style)
-python "$IMAGE_SCRIPT" \
-  --prompt "[VISUAL SYSTEM DESCRIPTION + Slide 1 Hook content]" \
-  --output "./output/carousel/slide_01_hook.png" \
-  --reference "$REFS_DIR/{category}/{matched_reference}.jpg" \
-  --aspect portrait
-```
-
-4. **Use reference chaining from Slide 2 onwards:** After generating slide 1, use IT as `--reference` for slide 2, then slide 2 for slide 3, etc. This ensures each slide visually matches the previous one while maintaining the professional style established by the built-in reference.
+1. **Run Phase 0** to select the matched reference
+2. **Run Phase 0b** to fetch images for ALL slides that need photos
+3. **Define the visual system first:** Write a shared CSS block that ALL slides will use
+4. **Generate each slide** using the same base CSS + slide-specific content:
 
 ```bash
-# Slide 2 using Slide 1 as reference (reference chaining)
-python "$IMAGE_SCRIPT" \
-  --prompt "[VISUAL SYSTEM + Slide 2 content]. Match the exact visual style, colors, layout and typography of the reference image." \
-  --output "./output/carousel/slide_02.png" \
-  --reference "./output/carousel/slide_01_hook.png" \
-  --aspect portrait
+# Shared visual system CSS (identical for every slide)
+SHARED_CSS='...'
 
-# Slide 3 using Slide 2 as reference
-python "$IMAGE_SCRIPT" \
-  --prompt "[VISUAL SYSTEM + Slide 3 content]. Match the exact visual style, colors, layout and typography of the reference image." \
-  --output "./output/carousel/slide_03.png" \
-  --reference "./output/carousel/slide_02.png" \
-  --aspect portrait
-
-# ... continue chaining for all remaining slides
-```
-
-4. **Provide all slide images** to the user in numbered order for upload to LinkedIn as a carousel document (PDF or individual images).
-
-**Visual System Template for Carousels:**
-```
-VISUAL SYSTEM (apply to ALL slides):
-- Background: [exact treatment with hex colors]
-- Top bar: [brand name/logo area description]
-- Content zone: [centered, with exact margin descriptions]
-- Typography: Headlines in [style, color], body in [style, color]
-- Accent elements: [shapes, lines, icons with colors and positions]
-- Bottom bar: [progress indicator "X/N" in bottom-right, small text, {hex color}]
-- Swipe indicator on slide 1 only: "Swipe →" in small text, bottom-center
-- Overall feel: [brand tone]
+# Slide 1 - Hook
+node "$IMAGE_SCRIPT" --html-string "..." --output "./output/carousel/slide_01_hook.png"
+# Slide 2
+node "$IMAGE_SCRIPT" --html-string "..." --output "./output/carousel/slide_02.png"
+# ... continue for all slides
 ```
 
 **Carousel Slide Structure:**
 
 **Slide 1 — The Hook (most critical):**
 - Large bold headline, maximum 2-3 lines
-- One focal point only — do not split attention
+- One focal point only
 - Create curiosity gap or pattern interrupt
-- Include subtle swipe indicator ("Swipe →" or arrow)
-- High contrast treatment — this slide must punch through the feed
+- Include swipe indicator ("Swipe →")
 
-Hook formulas that work:
+Hook formulas:
 | Formula | Example |
 |---------|---------|
 | Number + Outcome | "7 Ways to Double Your Pipeline" |
@@ -577,21 +646,14 @@ Hook formulas that work:
 
 **Slides 2-7 — The Value:**
 - One idea per slide, no exceptions
-- Consistent template across all content slides (same layout, fonts, colors, margins)
-- Bold headline per slide: 3-5 words max
+- Consistent template across all content slides
+- Bold headline: 3-5 words max
 - Body text: 2-3 lines max
-- One supporting icon or visual per slide
 - Progress indicator bottom-right (e.g., "3/9")
-- Maximum 30-40 words per slide
-
-**Slide 8 (optional) — Summary:**
-- Recap key points as a checklist or bullet list
-- Include a memorable one-liner
 
 **Final Slide — CTA:**
-- Clear action: follow, save, comment, share, link, or DM
-- Profile/brand reinforcement (name, handle, tagline)
-- Logo more prominent here than on other slides
+- Use Pattern 6 (CTA template) for the closing slide
+- Clear action + brand reinforcement
 
 **Slide count sweet spot:** 7-10 slides. Minimum 6. Only go 12+ for exceptionally detailed content.
 
@@ -600,79 +662,71 @@ Hook formulas that work:
 Run through this checklist before delivering. Every Critical item must pass.
 
 **Critical (zero tolerance):**
-- [ ] Correct aspect ratio (portrait 9:16 or square 1:1) verified visually
-- [ ] No spelling or grammar errors in the prompt text
-- [ ] Brand colors match guide (specified exact hex in prompt) — colors from CLIENT, not reference
-- [ ] All text readable — large enough to read on mobile
-- [ ] No artifacts, distortion, or low-res elements
-- [ ] PNG format output
-- [ ] Reference image was used in generation (built-in or user-provided)
-- [ ] Design looks like a professional social media template, not a generic AI image
+- [ ] Correct aspect ratio verified visually
+- [ ] No spelling or grammar errors
+- [ ] Brand colors match guide (exact hex in CSS)
+- [ ] All text readable on mobile
+- [ ] No rendering artifacts or layout overflow
+- [ ] PNG format at 2x resolution
+- [ ] Reference layout was studied and replicated
+- [ ] Looks like a professional social media template
+- [ ] **Images match content document suggestions** (if provided)
 
 **Important — all posts:**
-- [ ] Clear visual hierarchy (headline > body > CTA) — follows one of the 6 layout patterns
+- [ ] Clear visual hierarchy (headline > body > CTA)
 - [ ] High contrast between text and background
-- [ ] Generous whitespace — content breathes
-- [ ] CTA is clear and specific — inside a rounded pill button
-- [ ] Maximum 2 font styles used
-- [ ] 60/30/10 color ratio applied correctly
-- [ ] 1-2 accent words in headline highlighted (different color or background highlight)
-- [ ] Bottom bar has contact/URL info
-- [ ] Brand mark is small and subtle (top-left or top-center)
+- [ ] Generous whitespace
+- [ ] CTA in rounded pill button
+- [ ] Maximum 2 font styles
+- [ ] 60/30/10 color ratio
+- [ ] 1-2 accent words highlighted
+- [ ] Bottom bar has contact/URL
+- [ ] Brand mark small and subtle
+- [ ] Photo attributions saved
 
 **Important — carousels only:**
-- [ ] Consistent style across all slides (used same visual system prompt + reference chaining)
-- [ ] One idea per slide — no exceptions
-- [ ] Hook slide creates curiosity gap or pattern interrupt
-- [ ] Progress indicators present (e.g., "3/9") in prompt
+- [ ] Consistent style across all slides (shared CSS)
+- [ ] One idea per slide
+- [ ] Hook creates curiosity gap
+- [ ] Progress indicators present
 - [ ] Swipe indicator on slide 1
-
-**If quality check fails:** Refine the prompt with more specific instructions addressing the issue and regenerate. Common fixes:
-- Text not legible → add "Ensure all text is large, bold, crisp and perfectly legible"
-- Colors wrong → double-check hex values in prompt
-- Layout crowded → add "Generous whitespace, minimalist layout, ample margins"
-- Inconsistent carousel slides → strengthen visual system description, use reference chaining
 
 ### Phase 4: Export & Deliver
 
-1. **Single image:** Already exported as PNG from Flux 2. Verify file exists at output path.
-2. **Carousel:** All slides are individual PNGs in `./output/carousel/`. List them in order for the user. Optionally combine into a PDF if requested.
-3. Save final files to `./output/[client-name]_linkedin_[post-type]_[YYYY-MM-DD].png`
-4. Print summary: design decisions, output file paths
+1. **Single image:** PNG from Puppeteer. Verify file exists.
+2. **Carousel:** Individual PNGs in `./output/carousel/`. List in order.
+3. Save to `./output/[client-name]_linkedin_[post-type]_[YYYY-MM-DD].png`
+4. Print summary: design decisions, file paths, **photo attributions**
 
 ---
 
 ## Design Principles (apply throughout)
 
-These 12 rules govern every LinkedIn design decision:
-
-1. **Mobile first** — 70%+ of LinkedIn is mobile. If it doesn't work on a phone screen, it doesn't work.
-2. **2-second rule** — Your message must land in under 2 seconds. One focal point, large bold text, minimal competing elements.
-3. **One idea per slide** — Cognitive overload kills engagement. Each carousel slide = one complete thought.
-4. **Contrast is king** — Dark on light or light on dark, high contrast. The feed is visually noisy; your post must punch through.
-5. **Typography hierarchy** — Three levels max: headline (large bold), subhead (medium), body (regular).
-6. **Pattern interrupt** — The hook must break the scroll autopilot. Asymmetry, bold color, provocative text, large numbers.
-7. **Brand consistency (subtle)** — 80% content value, 20% brand elements. Logo small in corner. Brand colors as accents, not full backgrounds.
-8. **Whitespace** — Generous margins. Empty space guides the eye and elevates perceived quality.
-9. **Color psychology** — Choose colors intentionally. Avoid LinkedIn blue (#0A66C2) as primary — it blends into the interface. Use 60/30/10 color ratio.
-10. **Icons over stock** — Simple, consistent icon sets outperform generic stock photos.
-11. **Progress indicators** — For carousels, show slide position (e.g., "3/9") bottom-right. Increases completion rates.
-12. **Test and iterate** — Generate a draft first, review, then refine the prompt for the final version.
+1. **Mobile first** — 70%+ of LinkedIn is mobile.
+2. **2-second rule** — Message must land in under 2 seconds.
+3. **One idea per slide** — Cognitive overload kills engagement.
+4. **Contrast is king** — High contrast to punch through the feed.
+5. **Typography hierarchy** — Three levels max: headline, subhead, body.
+6. **Pattern interrupt** — Hook must break scroll autopilot.
+7. **Brand consistency (subtle)** — 80% content, 20% brand elements.
+8. **Whitespace** — Generous margins elevate perceived quality.
+9. **Color psychology** — Avoid LinkedIn blue (#0A66C2). Use 60/30/10.
+10. **Match content doc images** — When image suggestions exist, fetch exact matches from open-source platforms.
+11. **Progress indicators** — Show slide position for carousels.
+12. **Test and iterate** — Draft first, then refine HTML.
 
 ---
 
 ## Carousel Type Templates
 
-Match the content to the right carousel structure:
-
 | Type | Structure | Design Approach |
 |------|-----------|-----------------|
-| Educational | Hook → Tip 1-5 → Summary → CTA | Numbered slides, icons per tip, clean professional |
-| Story | Hook → Setup → Challenge → Resolution → Lesson → CTA | Personal tone, timeline visual, more whitespace |
-| Data/Stats | Hook (surprising stat) → Data points → Context → Implications → CTA | Large numbers as focal points, simple charts, source citations |
-| How-To/Process | Hook (outcome) → Step 1-5 → Summary → CTA | Numbered steps, progress indicators, action icons |
-| Comparison | Hook → Old way → New way → Why it matters → CTA | Split layouts, red X / green check, before/after contrast |
-| Myth-Busting | Hook → Myth 1 → Truth → Myth 2 → Truth → CTA | Crossed-out text for myths, bold truth statements, contrasting colors |
+| Educational | Hook → Tip 1-5 → Summary → CTA | Numbered slides, icons per tip |
+| Story | Hook → Setup → Challenge → Resolution → Lesson → CTA | Personal tone, timeline visual |
+| Data/Stats | Hook → Data points → Context → Implications → CTA | Large numbers, simple charts |
+| How-To/Process | Hook → Step 1-5 → Summary → CTA | Numbered steps, action icons |
+| Comparison | Hook → Old way → New way → Why it matters → CTA | Split layouts, before/after |
+| Myth-Busting | Hook → Myth → Truth → Myth → Truth → CTA | Crossed-out myths, bold truths |
 
 ---
 
@@ -680,42 +734,41 @@ Match the content to the right carousel structure:
 
 | Anti-Pattern | Why It Fails |
 |-------------|--------------|
-| Walls of text | No one reads, everyone scrolls past |
+| Walls of text | No one reads |
 | Busy backgrounds | Reduces readability |
 | Tiny text | Invisible on mobile |
-| Logo as hero element | Looks like an ad, reduces engagement |
-| Low contrast | Disappears in the feed |
+| Logo as hero | Looks like an ad |
+| Low contrast | Disappears in feed |
 | Multiple focal points | Confuses the eye |
 | Inconsistent slides | Feels amateur |
 | No CTA | Missed opportunity |
-| Generic stock photos | Forgettable |
+| Generic stock photos | Always match content doc suggestions |
 | Too many colors (4+) | Visual chaos |
-| Text over busy images without overlay | Unreadable |
-| Vague prompts | Results in generic, unusable output |
+| Ignoring image suggestions | Content document is source of truth |
 
 ---
 
-## Flux 2 Prompt Best Practices
+## Puppeteer Rendering Best Practices
 
-1. **Be exhaustively specific** — Describe every element, its position, color, and size. Flux 2 works best with hyper-detailed prompts.
-2. **Include exact text** — Write out all text that should appear in the image within quotes.
-3. **Specify hex colors** — Never say "blue" when you can say "#1E3A5F".
-4. **Describe layout spatially** — Use "top-left", "center", "bottom-right", "upper third" etc.
-5. **State what you DON'T want** — "No stock photos, no clipart, no 3D renders" helps constrain output.
-6. **Reference design styles** — "Clean and minimal like Apple marketing" or "Bold and editorial like Bloomberg Businessweek" gives Flux 2 strong direction.
-7. **Iterate** — Generate a first version, review it, then refine the prompt for the final output.
-8. **Use reference images** — When the user provides examples, always use `--reference` to guide the style.
+1. **Use Google Fonts** — Import brand-appropriate fonts via URL.
+2. **Scale factor 2** — Retina-quality output (effective 2160x2700 for portrait).
+3. **Wait for network idle** — Ensures fonts and images are loaded.
+4. **Base64 for inline HTML** — More reliable than file paths for images.
+5. **Test in Chrome first** — Preview HTML before Puppeteer rendering.
+6. **CSS flexbox/grid** — Precise, predictable layouts matching references.
+7. **Fallback fonts** — `font-family: 'Brand Font', 'Inter', 'Helvetica Neue', sans-serif`.
+8. **Self-contained HTML** — No external dependencies except Google Fonts.
 
 ---
 
 ## Fallback Rules
 
-- **Flux 2 API fails** → Check FLUX_API_KEY is set. Retry once. If still failing, report the error to the user.
-- **Text rendering is poor** → Add explicit instructions: "Text must be perfectly typeset, crisp, and professionally rendered. Each word must be spelled exactly as specified."
-- **Style inconsistency in carousel** → Use reference chaining (each slide references the previous) and strengthen the visual system description.
-- **Image quality too low** → Try increasing width/height dimensions for higher resolution.
-- **File system unavailable** → Output images to current directory and provide paths.
-- **Reference image not found** → List available references in the category with `ls "$REFS_DIR/{category}/"`. If category is empty, try the closest adjacent category. If no references exist at all, proceed without `--reference` but warn the user that output quality may be lower.
-- **Output doesn't match reference style** → Try a different reference from the same category. If none work well, try a reference from an adjacent category (e.g., `corporate/` for a `tech/` business).
-- **Brand doc missing colors/fonts** → Scrape the company website to extract primary colors from CSS, identify fonts from the site's typography, and download the logo from the site header.
+- **Puppeteer not installed** → Run `cd "$SKILL_DIR/scripts" && npm install`.
+- **Image fetch fails** → Report missing API keys. Use CSS gradients as fallback.
+- **Wrong photo returned** → Refine query, try different provider.
+- **Font doesn't load** → Check Google Fonts URL. Use fallback fonts.
+- **HTML rendering broken** → Debug in Chrome browser directly.
+- **Carousel inconsistency** → Verify shared CSS is identical across slides.
+- **Reference not found** → Use template layouts without visual reference.
+- **Brand doc missing data** → Scrape company website for colors, fonts, logo.
 - Output always goes to `./output/` in the project directory.

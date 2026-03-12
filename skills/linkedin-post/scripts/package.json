@@ -1,0 +1,13 @@
+{
+  "name": "linkedin-post-scripts",
+  "version": "2.0.0",
+  "description": "Puppeteer-based image generation for LinkedIn Post Skill",
+  "private": true,
+  "scripts": {
+    "generate": "node generate_image.js",
+    "fetch": "node fetch_image.js"
+  },
+  "dependencies": {
+    "puppeteer": "^23.0.0"
+  }
+}
