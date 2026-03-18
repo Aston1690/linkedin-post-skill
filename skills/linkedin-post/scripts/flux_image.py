@@ -31,8 +31,9 @@ ASPECT_PRESETS = {
 BFL_API_URL = "https://api.bfl.ml/v1"
 BFL_FLUX_MODEL = "flux-pro-1.1-ultra"
 
-# OpenRouter endpoint (fallback)
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/images/generations"
+# OpenRouter endpoint (uses chat completions with image modality)
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_FLUX_MODEL = "black-forest-labs/flux.2-pro"
 
 
 def get_api_key():
@@ -131,12 +132,13 @@ def generate_with_bfl(prompt, width, height, api_key):
 
 
 def generate_with_openrouter(prompt, width, height, api_key):
-    """Generate image using OpenRouter API with Flux 2 model."""
+    """Generate image using OpenRouter API with Flux 2 Pro model (chat completions + image modality)."""
     payload = json.dumps({
-        "model": "black-forest-labs/flux-2",
-        "prompt": prompt,
-        "n": 1,
-        "size": f"{width}x{height}",
+        "model": OPENROUTER_FLUX_MODEL,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "modalities": ["image"],
     }).encode("utf-8")
 
     req = urllib.request.Request(
@@ -158,20 +160,25 @@ def generate_with_openrouter(prompt, width, height, api_key):
         print(f"Error from OpenRouter API ({e.code}): {body}", file=sys.stderr)
         sys.exit(1)
 
-    # Extract image data
-    data = result.get("data", [{}])
-    if not data:
-        print(f"Error: No image data in response: {result}", file=sys.stderr)
+    # Extract image from chat completions response
+    choices = result.get("choices", [])
+    if not choices:
+        print(f"Error: No choices in response: {result}", file=sys.stderr)
         sys.exit(1)
 
-    entry = data[0]
-    if "b64_json" in entry:
-        return base64.b64decode(entry["b64_json"])
-    elif "url" in entry:
-        return download_image(entry["url"])
-    else:
-        print(f"Error: Unexpected response format: {result}", file=sys.stderr)
-        sys.exit(1)
+    message = choices[0].get("message", {})
+    images = message.get("images", [])
+    if images:
+        image_url = images[0].get("image_url", {}).get("url", "")
+        if image_url.startswith("data:"):
+            # Base64 data URL — extract and decode
+            header, b64data = image_url.split(",", 1)
+            return base64.b64decode(b64data)
+        elif image_url:
+            return download_image(image_url)
+
+    print(f"Error: No image data in response: {result}", file=sys.stderr)
+    sys.exit(1)
 
 
 def download_image(url):
